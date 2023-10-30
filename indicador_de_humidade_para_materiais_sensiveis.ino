@@ -7,6 +7,7 @@
 #define DHTPIN 12     
 #define DHTTYPE DHT11 
 
+
 DHT dht(DHTPIN, DHTTYPE);
 
 void connectWiFi();
@@ -32,6 +33,23 @@ const char* mqtt_usernameAdafruitIO = "gabriel26077";
 const char* mqtt_keyAdafruitIO = "aio_lyRh94s9kfzhbW4kCBoVWCkbU5bJ";
 
 int valor = 0;
+
+
+float min_t = 0;
+float max_t = 50; 
+
+float min_u = 30;
+float max_u = 60; 
+
+float ideal_t = (max_t + min_t)/2; 
+float ideal_u = (max_u + min_u)/2;
+
+float raio_t = (max_t - min_t)/2; 
+float raio_u = (max_u - min_u)/2;
+
+
+
+bool isDanger(float observed_t, float observed_u);//Modelo "matemático" para classificar
 
 void setup() {
   
@@ -62,25 +80,29 @@ void loop() {
   Serial.print(F("°C "));
   Serial.print("\n");
 
-  bool perigo = false;
+  bool danger = isDanger(t,h);
+
+  /*
+  Esse código não é mais necessário, em tese.
   if(h > 50 || t > 25){
     perigo = true;
   }else{
-    perigo = false;
+    
   }
-  
+  */
+
   if (!mqtt_client.connected()) { // Se MQTT não estiver conectado
     connectMQTT();
   }
 
   if (mqtt_client.connected()) {
 
-    if(h >= 0 && h <= 100 && t >= -10 && t <= 100){//tratamento de dados
+    if(h >= 20 && h <= 90 && t >= 0 && t <= 50){//tratamento de dados
       mqtt_client.publish("gabriel26077/feeds/umidade", String(h).c_str());
       mqtt_client.publish("gabriel26077/feeds/temperatura", String(t).c_str());
-      mqtt_client.publish("gabriel26077/feeds/corrosao", String(perigo).c_str());
+      mqtt_client.publish("gabriel26077/feeds/corrosao", String(danger).c_str());
 
-      Serial.printf("Publicou os dado:\n\tUmidade: %s\n\tTemperatura: %s\n\tCorrosao: %s\n", String(h), String(t), String(perigo));
+      Serial.printf("Publicou os dado:\n\tUmidade: %s\n\tTemperatura: %s\n\tCorrosao: %s\n", String(h), String(t), String(danger));
 
     }
 
@@ -137,5 +159,16 @@ void connectMQTT() {
     }
   }
   Serial.println();
+}
+
+
+
+bool isDanger(float observed_t, float observed_u){
+
+  float delta_t = pow((observed_t - ideal_t)/raio_t,2);
+  float delta_u = pow((observed_u - ideal_u)/raio_u,2);
+
+  return delta_t + delta_u > 1;
+  
 }
 
