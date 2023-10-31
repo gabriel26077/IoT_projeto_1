@@ -50,6 +50,7 @@ float raio_u = (max_u - min_u)/2;
 
 
 bool isDanger(float observed_t, float observed_u);//Modelo "matemático" para classificar
+int danger_limit(float observed_t, float observed_u);
 
 void setup() {
   
@@ -81,6 +82,7 @@ void loop() {
   Serial.print("\n");
 
   bool danger = isDanger(t,h);
+  int inst_danger_limit = danger_limit(t,h);
 
   /*
   Esse código não é mais necessário, em tese.
@@ -100,9 +102,17 @@ void loop() {
     if(h >= 20 && h <= 90 && t >= 0 && t <= 50){//tratamento de dados
       mqtt_client.publish("gabriel26077/feeds/umidade", String(h).c_str());
       mqtt_client.publish("gabriel26077/feeds/temperatura", String(t).c_str());
-      mqtt_client.publish("gabriel26077/feeds/corrosao", String(danger).c_str());
+      mqtt_client.publish("gabriel26077/feeds/perigo", String(danger).c_str());
+      mqtt_client.publish("gabriel26077/feeds/risco-de-perigo", String(inst_danger_limit).c_str());
+      
 
-      Serial.printf("Publicou os dado:\n\tUmidade: %s\n\tTemperatura: %s\n\tCorrosao: %s\n", String(h), String(t), String(danger));
+      Serial.printf(
+        "Publicou os dado:\n\tUmidade: %s\n\tTemperatura: %s\n\tCorrosao: %s\n\Risco: %s\n",
+        String(h),
+        String(t),
+        String(danger),
+        String(inst_danger_limit)
+      );
 
     }
 
@@ -170,5 +180,19 @@ bool isDanger(float observed_t, float observed_u){
 
   return delta_t + delta_u > 1;
   
+}
+
+int danger_limit(float observed_t, float observed_u){
+
+  float delta2_t = pow((observed_t - ideal_t)*raio_u,2);
+  float delta2_u = pow((observed_u - ideal_u)*raio_t,2);
+  float max_dist = pow(raio_t*raio_u,2);
+
+  if(delta2_t + delta2_u > max_dist)
+    return 1;
+
+  float value = ((delta2_t + delta2_u)*100)/max_dist;
+
+  return (int) value;
 }
 
